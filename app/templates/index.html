@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Employee Performance Prediction Platform | Explainable HR Analytics</title>
+  <!-- Tailwind CSS & Lucide Icons & Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .tier-exceeds { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .tier-meets { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .tier-partially { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .tier-needs { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- ================= AUTH MODAL / SCREEN ================= -->
+  <div id="auth-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-200">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Performance Platform</h2>
+          <p class="text-xs text-slate-500 font-medium">Explainable HR Analytics & Forecasting</p>
+        </div>
+      </div>
+
+      <div class="mb-5 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 leading-relaxed">
+        <span class="font-semibold block mb-1">Quick-Select Role Persona:</span>
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <button type="button" onclick="presetLogin('hr', 'hr123')" class="px-2 py-1.5 bg-white border border-blue-300 rounded-lg text-center hover:bg-blue-100 font-medium transition shadow-sm">
+            HR Manager
+          </button>
+          <button type="button" onclick="presetLogin('admin', 'admin123')" class="px-2 py-1.5 bg-white border border-blue-300 rounded-lg text-center hover:bg-blue-100 font-medium transition shadow-sm">
+            Admin
+          </button>
+          <button type="button" onclick="presetLogin('lead', 'lead123')" class="px-2 py-1.5 bg-white border border-blue-300 rounded-lg text-center hover:bg-blue-100 font-medium transition shadow-sm">
+            Team Lead
+          </button>
+        </div>
+      </div>
+
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Username</label>
+          <input id="login-username" type="text" required value="hr" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Password</label>
+          <input id="login-password" type="password" required value="hr123" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+        </div>
+        <div id="login-error" class="text-xs text-red-600 font-medium hidden"></div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition text-sm">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MAIN APP LAYOUT ================= -->
+  <div id="app-container" class="flex-1 flex flex-col min-h-screen" style="display:none;">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-slate-900 leading-tight">Employee Performance Platform</h1>
+            <p class="text-xs text-slate-500">Explainable AI & Talent Decision-Support System</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex space-x-1" id="nav-tabs">
+          <button onclick="switchTab('dashboard')" class="tab-btn px-3 py-2 text-sm font-semibold rounded-lg text-blue-600 bg-blue-50 flex items-center space-x-2" data-tab="dashboard">
+            <i class="fa-solid fa-chart-pie"></i><span>Dashboard</span>
+          </button>
+          <button onclick="switchTab('predict')" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2" data-tab="predict">
+            <i class="fa-solid fa-user-check"></i><span>Single Predictor</span>
+          </button>
+          <button onclick="switchTab('bulk')" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2" data-tab="bulk">
+            <i class="fa-solid fa-file-csv"></i><span>Bulk Cohort</span>
+          </button>
+          <button onclick="switchTab('employees')" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2" data-tab="employees">
+            <i class="fa-solid fa-users"></i><span>Employees</span>
+          </button>
+          <button onclick="switchTab('modelzoo')" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2" data-tab="modelzoo">
+            <i class="fa-solid fa-network-wired"></i><span>Model Zoo</span>
+          </button>
+          <button id="admin-tab-btn" onclick="switchTab('admin')" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2" data-tab="admin">
+            <i class="fa-solid fa-shield-halved"></i><span>Admin</span>
+          </button>
+        </nav>
+
+        <!-- User Role Profile & Logout -->
+        <div class="flex items-center space-x-3">
+          <div class="text-right hidden sm:block">
+            <div id="user-display-name" class="text-xs font-bold text-slate-900">HR Manager</div>
+            <div id="user-display-role" class="text-[11px] text-blue-600 font-semibold px-1.5 py-0.5 bg-blue-50 rounded">HR Manager</div>
+          </div>
+          <button onclick="handleLogout()" title="Logout" class="h-9 w-9 rounded-lg border border-slate-300 text-slate-600 hover:text-red-600 hover:border-red-300 flex items-center justify-center transition">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- App Content Wrapper -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+      <!-- ================= 1. DASHBOARD VIEW ================= -->
+      <section id="view-dashboard" class="space-y-6">
+        <!-- Top Stats Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div class="h-12 w-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Headcount</div>
+              <div id="stat-total-emp" class="text-2xl font-bold text-slate-900">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div class="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-star"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wider">Top Performers</div>
+              <div id="stat-exceeds" class="text-2xl font-bold text-emerald-600">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div class="h-12 w-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wider">At-Risk Cohort</div>
+              <div id="stat-needs" class="text-2xl font-bold text-rose-600">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+            <div class="h-12 w-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wider">Active Model F1</div>
+              <div id="stat-model-f1" class="text-2xl font-bold text-indigo-600">0.6606</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-1">
+            <h3 class="text-sm font-bold text-slate-900 mb-1 flex items-center justify-between">
+              <span>Performance Tier Distribution</span>
+              <i class="fa-solid fa-chart-pie text-slate-400"></i>
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Breakdown across 4 enterprise rating bands</p>
+            <div class="h-64 relative flex items-center justify-center">
+              <canvas id="chart-tier-dist"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+            <h3 class="text-sm font-bold text-slate-900 mb-1 flex items-center justify-between">
+              <span>Department Distribution & Headcount</span>
+              <i class="fa-solid fa-building-user text-slate-400"></i>
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Employee volume and evaluation distribution by business unit</p>
+            <div class="h-64 relative">
+              <canvas id="chart-dept-dist"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operational Risk Radar & Action Center -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Operational Risk Early Warning Signals</h3>
+                <p class="text-xs text-slate-500">Automated flags generated from hours, tenure, and engagement patterns</p>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+                Rule-Based + SHAP (§2.3)
+              </span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="risk-summary-cards">
+              <!-- Dynamically populated risk counters -->
+            </div>
+          </div>
+
+          <!-- Quick Actions & Report Export -->
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 mb-1">Executive Report Generator</h3>
+              <p class="text-xs text-slate-500 mb-4">Export publication-ready compliance & talent audits (§2.1)</p>
+              <div class="space-y-3">
+                <a href="/api/reports/export/pdf" download class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-xs shadow-md shadow-blue-500/20 transition">
+                  <i class="fa-solid fa-file-pdf"></i>
+                  <span>Download Executive PDF Report</span>
+                </a>
+                <a href="/api/reports/export/csv" download class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-xs transition border border-slate-300">
+                  <i class="fa-solid fa-file-csv"></i>
+                  <span>Export Predictions CSV Dataset</span>
+                </a>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
+              Platform operates strictly as a decision-support advisory tool (§1.5).
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. SINGLE PREDICTOR VIEW ================= -->
+      <section id="view-predict" class="space-y-6" style="display:none;">
+        <!-- Header & Presets -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Individual Employee Performance Scoring</h2>
+            <p class="text-xs text-slate-500">Self-contained inference with real-time SHAP feature attribution (§4.1)</p>
+          </div>
+          <div class="flex items-center space-x-2 text-xs">
+            <span class="font-semibold text-slate-500">Quick-Load Profile:</span>
+            <button onclick="loadSamplePreset('high')" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-medium">Top Performer</button>
+            <button onclick="loadSamplePreset('burnout')" class="px-2.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100 font-medium">Burnout Alert</button>
+            <button onclick="loadSamplePreset('stagnant')" class="px-2.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-medium">Stagnant Role</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Input Form Column -->
+          <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <form id="single-pred-form" onsubmit="executeSinglePrediction(event)" class="space-y-5">
+              
+              <!-- Section A: Demographics -->
+              <div>
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Demographics & Background</h4>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Age</label>
+                    <input id="f_Age" type="number" value="34" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Gender</label>
+                    <select id="f_Gender" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option>Female</option><option>Male</option><option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Marital Status</label>
+                    <select id="f_MaritalStatus" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option>Married</option><option>Single</option><option>Divorced</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Distance (km)</label>
+                    <input id="f_DistanceFromHome" type="number" value="6" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Education Level</label>
+                    <select id="f_Education" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option value="1">1 - Below College</option>
+                      <option value="2">2 - College</option>
+                      <option value="3">3 - Bachelor's</option>
+                      <option value="4" selected>4 - Master's</option>
+                      <option value="5">5 - Doctorate</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Overtime Active</label>
+                    <select id="f_OverTime" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option>No</option><option>Yes</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section B: Role & Tenure -->
+              <div class="pt-3 border-t border-slate-100">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2. Department & Tenure</h4>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Department</label>
+                    <select id="f_Department" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option>Research & Development</option>
+                      <option>Sales</option>
+                      <option>Human Resources</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Job Role</label>
+                    <select id="f_JobRole" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                      <option>Developer</option>
+                      <option>Research Scientist</option>
+                      <option>Sales Executive</option>
+                      <option>Manager</option>
+                      <option>HR Specialist</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Monthly Salary ($)</label>
+                    <input id="f_MonthlyIncome" type="number" step="100" value="8500" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Total Work Yrs</label>
+                    <input id="f_TotalWorkingYears" type="number" value="10" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Company Tenure (Yrs)</label>
+                    <input id="f_YearsAtCompany" type="number" value="5" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Yrs in Current Role</label>
+                    <input id="f_YearsInCurrentRole" type="number" value="3" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Companies Worked</label>
+                    <input id="f_NumCompaniesWorked" type="number" value="2" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Promotions (Last 5Y)</label>
+                    <input id="f_PromotionsLast5Y" type="number" value="1" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Certifications</label>
+                    <input id="f_Certifications" type="number" value="4" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section C: Delivery & Engagement Signals -->
+              <div class="pt-3 border-t border-slate-100">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">3. Delivery & Engagement Signals</h4>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Projects Completed</label>
+                    <input id="f_ProjectsCompleted" type="number" value="9" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Deadline Adherence</label>
+                    <input id="f_DeadlineAdherence" type="number" step="0.01" min="0" max="1" value="0.92" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Absenteeism (Days)</label>
+                    <input id="f_AbsenteeismDays" type="number" value="2" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Engagement (1-5)</label>
+                    <input id="f_EngagementScore" type="number" min="1" max="5" value="4" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Work-Life Balance (1-5)</label>
+                    <input id="f_WorkLifeBalance" type="number" min="1" max="5" value="4" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Peer Feedback (1-5)</label>
+                    <input id="f_PeerFeedbackScore" type="number" min="1" max="5" value="4" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                  <div class="col-span-3">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Previous Manager Rating (1-5)</label>
+                    <input id="f_ManagerRatingPrev" type="number" min="1" max="5" value="5" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-predict-single" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 text-sm flex items-center justify-center space-x-2 transition">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Forecast Performance Tier & Explain via SHAP</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Prediction & SHAP Results Column -->
+          <div class="lg:col-span-5 space-y-6">
+            <!-- Prediction Badge & Probability Card -->
+            <div id="pred-result-card" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
+              <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Model Forecast Result</div>
+              <div id="result-badge" class="inline-block px-4 py-2 rounded-xl text-base font-bold mb-2 tier-meets">
+                Awaiting Input
+              </div>
+              <div id="result-conf" class="text-xs text-slate-500 font-medium mb-4">Run prediction to see class probabilities</div>
+              
+              <div class="h-44 relative">
+                <canvas id="chart-single-prob"></canvas>
+              </div>
+            </div>
+
+            <!-- Strengths & Operational Risks -->
+            <div id="insights-card" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div>
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5 mb-2">
+                  <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                  <span>Employee Core Strengths</span>
+                </h4>
+                <div id="list-strengths" class="flex flex-wrap gap-1.5 text-xs">
+                  <span class="text-slate-400 italic">No prediction computed yet</span>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-slate-100">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5 mb-2">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                  <span>Operational Risk Warnings</span>
+                </h4>
+                <div id="list-risks" class="space-y-2 text-xs">
+                  <span class="text-slate-400 italic">No risks flagged</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SHAP Explainability Table -->
+            <div id="shap-card" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between mb-3">
+                <span>SHAP Feature Attribution (Local Drivers)</span>
+                <span class="text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono">Game-Theoretic</span>
+              </h4>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-100 text-slate-400 font-semibold">
+                      <th class="pb-2">Feature</th>
+                      <th class="pb-2">Impact</th>
+                      <th class="pb-2 text-right">SHAP Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shap-table-body" class="divide-y divide-slate-100">
+                    <tr><td colspan="3" class="py-3 text-center text-slate-400 italic">Awaiting prediction</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. BULK COHORT EVALUATION VIEW ================= -->
+      <section id="view-bulk" class="space-y-6" style="display:none;">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Bulk Employee Cohort Ingestion & Evaluation</h2>
+              <p class="text-xs text-slate-500">Batch inference over structured CSV files with automated risk tagging (§2.3 Module 2 & 5)</p>
+            </div>
+            <button onclick="downloadSampleCsv()" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium border border-slate-300 flex items-center space-x-1.5">
+              <i class="fa-solid fa-download"></i><span>Download CSV Template</span>
+            </button>
+          </div>
+
+          <!-- File Upload Zone -->
+          <div class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-blue-400 transition bg-slate-50/50">
+            <input type="file" id="bulk-file-input" accept=".csv" class="hidden" onchange="handleBulkFileSelect(event)">
+            <div class="cursor-pointer" onclick="document.getElementById('bulk-file-input').click()">
+              <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-500 mb-2"></i>
+              <div class="text-sm font-semibold text-slate-800">Click to upload employee CSV cohort</div>
+              <p class="text-xs text-slate-500 mt-1">Accepts UTF-8 encoded .csv with enterprise schema features</p>
+            </div>
+            <div id="file-chosen-name" class="mt-3 text-xs font-semibold text-blue-600 hidden"></div>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button id="btn-process-bulk" onclick="uploadAndScoreBulk()" disabled class="px-5 py-2.5 bg-blue-600 disabled:opacity-50 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow transition">
+              Process Cohort Predictions
+            </button>
+          </div>
+        </div>
+
+        <!-- Bulk Results Table -->
+        <div id="bulk-results-container" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" style="display:none;">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900">Cohort Evaluation Roster</h3>
+            <span id="bulk-count-badge" class="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">0 Records</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">#</th>
+                  <th class="py-3 px-3">Candidate / ID</th>
+                  <th class="py-3 px-3">Department</th>
+                  <th class="py-3 px-3">Job Role</th>
+                  <th class="py-3 px-3">Predicted Rating Tier</th>
+                  <th class="py-3 px-3">Confidence</th>
+                  <th class="py-3 px-3">Operational Alerts</th>
+                </tr>
+              </thead>
+              <tbody id="bulk-table-body" class="divide-y divide-slate-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. EMPLOYEES DIRECTORY ================= -->
+      <section id="view-employees" class="space-y-6" style="display:none;">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Enterprise Employee Directory & 3NF Database</h2>
+            <p class="text-xs text-slate-500">Live relational employee records stored in normalized MySQL / SQLite schema (§2.6)</p>
+          </div>
+          <button onclick="openNewEmployeeModal()" class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm flex items-center space-x-1.5">
+            <i class="fa-solid fa-plus"></i><span>Add New Profile</span>
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Emp ID</th>
+                  <th class="py-3 px-3">Name</th>
+                  <th class="py-3 px-3">Department</th>
+                  <th class="py-3 px-3">Role</th>
+                  <th class="py-3 px-3">Monthly Income</th>
+                  <th class="py-3 px-3">Company Tenure</th>
+                  <th class="py-3 px-3">Overtime</th>
+                  <th class="py-3 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="employees-table-body" class="divide-y divide-slate-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. MODEL ZOO & EXPLAINABILITY ================= -->
+      <section id="view-modelzoo" class="space-y-6" style="display:none;">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Machine Learning Model Zoo & Diagnostics</h2>
+            <p class="text-xs text-slate-500">Benchmarked supervised classifiers on 80/20 stratified split (§4.2)</p>
+          </div>
+          <button id="btn-admin-retrain" onclick="triggerRetrain()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm flex items-center space-x-1.5">
+            <i class="fa-solid fa-arrows-rotate"></i><span>Trigger Model Retraining</span>
+          </button>
+        </div>
+
+        <!-- Leaderboard Table -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-3">Model Benchmark Leaderboard (§4.2)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Evaluated Algorithm</th>
+                  <th class="py-3 px-3">5-Fold CV Macro-F1</th>
+                  <th class="py-3 px-3">Test Set Accuracy</th>
+                  <th class="py-3 px-3">Test Macro-F1</th>
+                  <th class="py-3 px-3">Multiclass ROC-AUC (OvR)</th>
+                  <th class="py-3 px-3">Log Loss</th>
+                  <th class="py-3 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-table-body" class="divide-y divide-slate-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Diagnostic Figures (Figure 6, Figure 7, ROC) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="text-xs font-bold text-slate-900 mb-2">Figure 7 (Left): Confusion Matrix Heatmap</h4>
+            <img id="img-cm" src="/api/reports/diagnostics/confusion_matrix.png" alt="Confusion Matrix" class="w-full rounded-xl border border-slate-200 shadow-sm">
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="text-xs font-bold text-slate-900 mb-2">Figure 7 (Right): Permutation Feature Importances</h4>
+            <img id="img-fi" src="/api/reports/diagnostics/feature_importance.png" alt="Feature Importance" class="w-full rounded-xl border border-slate-200 shadow-sm">
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="text-xs font-bold text-slate-900 mb-2">Figure 6: Per-Class Precision, Recall, and F1-Score</h4>
+            <img id="img-metrics" src="/api/reports/diagnostics/classification_metrics.png" alt="Classification Metrics" class="w-full rounded-xl border border-slate-200 shadow-sm">
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="text-xs font-bold text-slate-900 mb-2">Multiclass One-vs-Rest ROC Curves</h4>
+            <img id="img-roc" src="/api/reports/diagnostics/multiclass_roc_curve.png" alt="ROC Curves" class="w-full rounded-xl border border-slate-200 shadow-sm">
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. SYSTEM ADMINISTRATION ================= -->
+      <section id="view-admin" class="space-y-6" style="display:none;">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h2 class="text-base font-bold text-slate-900 mb-1">System Administration & Role-Based Access (§2.3 Module 8)</h2>
+          <p class="text-xs text-slate-500 mb-4">Manage users, security authorization levels, and audit logs</p>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">User ID</th>
+                  <th class="py-3 px-3">Name</th>
+                  <th class="py-3 px-3">Username</th>
+                  <th class="py-3 px-3">Email</th>
+                  <th class="py-3 px-3">Assigned Role</th>
+                  <th class="py-3 px-3">Created</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table-body" class="divide-y divide-slate-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Audit Trail -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-2">Operational Audit Trail</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Log ID</th>
+                  <th class="py-3 px-3">Timestamp</th>
+                  <th class="py-3 px-3">Action</th>
+                  <th class="py-3 px-3">User</th>
+                  <th class="py-3 px-3">Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body" class="divide-y divide-slate-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-400">
+      Employee Performance Prediction Platform &bull; Academic Mini Project Phase 1–2 &bull; Chandigarh University B.E-CSE
+    </footer>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    let authToken = localStorage.getItem("token") || null;
+    let currentUser = null;
+    let tierChart = null;
+    let deptChart = null;
+    let singleProbChart = null;
+    let bulkFile = null;
+
+    // --- Authentication ---
+    function presetLogin(u, p) {
+      document.getElementById("login-username").value = u;
+      document.getElementById("login-password").value = p;
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById("login-username").value;
+      const p = document.getElementById("login-password").value;
+      const errEl = document.getElementById("login-error");
+      errEl.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errEl.textContent = data.msg || "Invalid credentials";
+          errEl.classList.remove("hidden");
+          return;
+        }
+
+        authToken = data.access_token;
+        currentUser = data.user;
+        localStorage.setItem("token", authToken);
+        showApp();
+      } catch (err) {
+        errEl.textContent = "Server connection error";
+        errEl.classList.remove("hidden");
+      }
+    }
+
+    function handleLogout() {
+      authToken = null;
+      currentUser = null;
+      localStorage.removeItem("token");
+      document.getElementById("auth-modal").classList.remove("hidden");
+      document.getElementById("app-container").style.display = "none";
+    }
+
+    async function checkAuth() {
+      if (!authToken) {
+        document.getElementById("auth-modal").classList.remove("hidden");
+        return;
+      }
+      try {
+        const res = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          currentUser = await res.json();
+          showApp();
+        } else {
+          handleLogout();
+        }
+      } catch (e) {
+        handleLogout();
+      }
+    }
+
+    function showApp() {
+      document.getElementById("auth-modal").classList.add("hidden");
+      document.getElementById("app-container").style.display = "flex";
+      document.getElementById("user-display-name").textContent = currentUser.name;
+      document.getElementById("user-display-role").textContent = currentUser.role;
+
+      // Restrict Admin tab to Admin role
+      if (currentUser.role !== "Admin") {
+        document.getElementById("admin-tab-btn").classList.add("hidden");
+        document.getElementById("btn-admin-retrain")?.classList.add("hidden");
+      } else {
+        document.getElementById("admin-tab-btn").classList.remove("hidden");
+        document.getElementById("btn-admin-retrain")?.classList.remove("hidden");
+      }
+
+      loadDashboard();
+    }
+
+    // --- Navigation Tabs ---
+    function switchTab(tabId) {
+      document.querySelectorAll("main > section").forEach(sec => sec.style.display = "none");
+      const target = document.getElementById(`view-${tabId}`);
+      if (target) target.style.display = "block";
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = "tab-btn px-3 py-2 text-sm font-semibold rounded-lg text-blue-600 bg-blue-50 flex items-center space-x-2";
+        } else {
+          btn.className = "tab-btn px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2";
+        }
+      });
+
+      if (tabId === "dashboard") loadDashboard();
+      if (tabId === "employees") loadEmployees();
+      if (tabId === "modelzoo") loadModelZoo();
+      if (tabId === "admin") loadAdminData();
+    }
+
+    // --- Dashboard Loader ---
+    async function loadDashboard() {
+      try {
+        const res = await fetch("/api/analytics", {
+          headers: { "Authorization": `Bearer ${authToken}` },
+        });
+        const data = await res.json();
+
+        document.getElementById("stat-total-emp").textContent = data.total_employees;
+        document.getElementById("stat-exceeds").textContent = data.tier_distribution["Exceeds Expectations"] || 0;
+        document.getElementById("stat-needs").textContent = data.tier_distribution["Needs Improvement"] || 0;
+
+        // Render Tier Chart
+        const tierLabels = Object.keys(data.tier_distribution);
+        const tierVals = Object.values(data.tier_distribution);
+        if (tierChart) tierChart.destroy();
+        tierChart = new Chart(document.getElementById("chart-tier-dist"), {
+          type: "doughnut",
+          data: {
+            labels: tierLabels,
+            datasets: [{
+              data: tierVals.length && tierVals.some(v => v > 0) ? tierVals : [15, 40, 30, 15],
+              backgroundColor: ["#f87171", "#fbbf24", "#60a5fa", "#34d399"],
+            }],
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+        });
+
+        // Render Dept Chart
+        const deptLabels = data.departments.map(d => d.dept_name);
+        const deptVals = data.departments.map(d => d.employee_count);
+        if (deptChart) deptChart.destroy();
+        deptChart = new Chart(document.getElementById("chart-dept-dist"), {
+          type: "bar",
+          data: {
+            labels: deptLabels,
+            datasets: [{
+              label: "Assigned Headcount",
+              data: deptVals,
+              backgroundColor: "#3b82f6",
+              borderRadius: 6,
+            }],
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Render Risk Cards
+        const riskContainer = document.getElementById("risk-summary-cards");
+        const risks = [
+          { title: "Burnout Alerts", desc: "Excessive overtime & compromised work-life balance", count: data.risk_summary.BURNOUT_RISK || 0, color: "rose" },
+          { title: "Career Stagnation", desc: "Prolonged tenure with 0 promotions", count: data.risk_summary.CAREER_STAGNATION || 0, color: "amber" },
+          { title: "Attrition Risk", desc: "Low engagement & review perception gap", count: data.risk_summary.ATTRITION_RISK || 0, color: "purple" },
+          { title: "Workload Strain", desc: "Elevated project load and fatigue markers", count: data.risk_summary.WORKLOAD_STRAIN || 0, color: "orange" },
+        ];
+        riskContainer.innerHTML = risks.map(r => `
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-bold text-slate-800">${r.title}</div>
+              <p class="text-[11px] text-slate-500">${r.desc}</p>
+            </div>
+            <span class="text-lg font-bold text-${r.color}-600 bg-white px-3 py-1 rounded-lg border border-slate-200">${r.count}</span>
+          </div>
+        `).join("");
+
+      } catch (err) {
+        console.error("Dashboard error:", err);
+      }
+    }
+
+    // --- Single Predictor Logic ---
+    function loadSamplePreset(type) {
+      if (type === "high") {
+        document.getElementById("f_Age").value = 34;
+        document.getElementById("f_Department").value = "Research & Development";
+        document.getElementById("f_JobRole").value = "Developer";
+        document.getElementById("f_OverTime").value = "No";
+        document.getElementById("f_MonthlyIncome").value = 9500;
+        document.getElementById("f_TotalWorkingYears").value = 10;
+        document.getElementById("f_YearsAtCompany").value = 5;
+        document.getElementById("f_YearsInCurrentRole").value = 3;
+        document.getElementById("f_PromotionsLast5Y").value = 1;
+        document.getElementById("f_Certifications").value = 5;
+        document.getElementById("f_ProjectsCompleted").value = 12;
+        document.getElementById("f_DeadlineAdherence").value = 0.98;
+        document.getElementById("f_AbsenteeismDays").value = 1;
+        document.getElementById("f_EngagementScore").value = 5;
+        document.getElementById("f_WorkLifeBalance").value = 4;
+        document.getElementById("f_PeerFeedbackScore").value = 5;
+        document.getElementById("f_ManagerRatingPrev").value = 5;
+      } else if (type === "burnout") {
+        document.getElementById("f_Age").value = 41;
+        document.getElementById("f_Department").value = "Sales";
+        document.getElementById("f_JobRole").value = "Sales Executive";
+        document.getElementById("f_OverTime").value = "Yes";
+        document.getElementById("f_MonthlyIncome").value = 7800;
+        document.getElementById("f_TotalWorkingYears").value = 14;
+        document.getElementById("f_YearsAtCompany").value = 6;
+        document.getElementById("f_YearsInCurrentRole").value = 4;
+        document.getElementById("f_PromotionsLast5Y").value = 0;
+        document.getElementById("f_Certifications").value = 1;
+        document.getElementById("f_ProjectsCompleted").value = 4;
+        document.getElementById("f_DeadlineAdherence").value = 0.65;
+        document.getElementById("f_AbsenteeismDays").value = 14;
+        document.getElementById("f_EngagementScore").value = 2;
+        document.getElementById("f_WorkLifeBalance").value = 1;
+        document.getElementById("f_PeerFeedbackScore").value = 2;
+        document.getElementById("f_ManagerRatingPrev").value = 2;
+      } else if (type === "stagnant") {
+        document.getElementById("f_Age").value = 38;
+        document.getElementById("f_Department").value = "Human Resources";
+        document.getElementById("f_JobRole").value = "HR Specialist";
+        document.getElementById("f_OverTime").value = "No";
+        document.getElementById("f_MonthlyIncome").value = 6900;
+        document.getElementById("f_TotalWorkingYears").value = 12;
+        document.getElementById("f_YearsAtCompany").value = 8;
+        document.getElementById("f_YearsInCurrentRole").value = 6;
+        document.getElementById("f_PromotionsLast5Y").value = 0;
+        document.getElementById("f_Certifications").value = 2;
+        document.getElementById("f_ProjectsCompleted").value = 6;
+        document.getElementById("f_DeadlineAdherence").value = 0.82;
+        document.getElementById("f_AbsenteeismDays").value = 5;
+        document.getElementById("f_EngagementScore").value = 3;
+        document.getElementById("f_WorkLifeBalance").value = 3;
+        document.getElementById("f_PeerFeedbackScore").value = 3;
+        document.getElementById("f_ManagerRatingPrev").value = 3;
+      }
+    }
+
+    async function executeSinglePrediction(e) {
+      e.preventDefault();
+      const payload = {
+        Age: parseFloat(document.getElementById("f_Age").value),
+        Gender: document.getElementById("f_Gender").value,
+        MaritalStatus: document.getElementById("f_MaritalStatus").value,
+        DistanceFromHome: parseFloat(document.getElementById("f_DistanceFromHome").value),
+        Education: parseInt(document.getElementById("f_Education").value),
+        Department: document.getElementById("f_Department").value,
+        JobRole: document.getElementById("f_JobRole").value,
+        YearsInCurrentRole: parseFloat(document.getElementById("f_YearsInCurrentRole").value),
+        OverTime: document.getElementById("f_OverTime").value,
+        MonthlyIncome: parseFloat(document.getElementById("f_MonthlyIncome").value),
+        TotalWorkingYears: parseFloat(document.getElementById("f_TotalWorkingYears").value),
+        YearsAtCompany: parseFloat(document.getElementById("f_YearsAtCompany").value),
+        NumCompaniesWorked: parseFloat(document.getElementById("f_NumCompaniesWorked").value),
+        PromotionsLast5Y: parseFloat(document.getElementById("f_PromotionsLast5Y").value),
+        Certifications: parseFloat(document.getElementById("f_Certifications").value),
+        ProjectsCompleted: parseFloat(document.getElementById("f_ProjectsCompleted").value),
+        DeadlineAdherence: parseFloat(document.getElementById("f_DeadlineAdherence").value),
+        AbsenteeismDays: parseFloat(document.getElementById("f_AbsenteeismDays").value),
+        EngagementScore: parseFloat(document.getElementById("f_EngagementScore").value),
+        WorkLifeBalance: parseFloat(document.getElementById("f_WorkLifeBalance").value),
+        PeerFeedbackScore: parseFloat(document.getElementById("f_PeerFeedbackScore").value),
+        ManagerRatingPrev: parseFloat(document.getElementById("f_ManagerRatingPrev").value),
+      };
+
+      try {
+        const res = await fetch("/api/predict", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authToken}`
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Prediction Error: " + (data.error || "Execution failed"));
+          return;
+        }
+
+        renderSingleResults(data);
+      } catch (err) {
+        alert("Server connection failed");
+      }
+    }
+
+    function renderSingleResults(data) {
+      const badge = document.getElementById("result-badge");
+      badge.textContent = data.predicted_class;
+      badge.className = "inline-block px-4 py-2 rounded-xl text-base font-bold mb-2 ";
+      if (data.predicted_class === "Exceeds Expectations") badge.className += "tier-exceeds";
+      else if (data.predicted_class === "Meets Expectations") badge.className += "tier-meets";
+      else if (data.predicted_class === "Partially Meets Expectations") badge.className += "tier-partially";
+      else badge.className += "tier-needs";
+
+      document.getElementById("result-conf").textContent = `Predicted with ${(data.confidence * 100).toFixed(1)}% model certainty`;
+
+      // Prob Chart
+      const pLabels = Object.keys(data.probabilities);
+      const pVals = pLabels.map(k => (data.probabilities[k] * 100).toFixed(1));
+      if (singleProbChart) singleProbChart.destroy();
+      singleProbChart = new Chart(document.getElementById("chart-single-prob"), {
+        type: "bar",
+        data: {
+          labels: pLabels,
+          datasets: [{
+            label: "Probability (%)",
+            data: pVals,
+            backgroundColor: "#3b82f6",
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { max: 100 } }
+        }
+      });
+
+      // Strengths
+      const strContainer = document.getElementById("list-strengths");
+      strContainer.innerHTML = (data.strengths && data.strengths.length)
+        ? data.strengths.map(s => `<span class="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">${s}</span>`).join("")
+        : `<span class="text-slate-400 italic">No standout strength factors detected</span>`;
+
+      // Risks
+      const riskContainer = document.getElementById("list-risks");
+      riskContainer.innerHTML = (data.risks && data.risks.length)
+        ? data.risks.map(r => `
+            <div class="p-2 rounded-lg border border-amber-200 bg-amber-50">
+              <span class="font-bold text-amber-800">[${r.level}] ${r.title}:</span> ${r.description}
+            </div>
+          `).join("")
+        : `<span class="text-emerald-600 font-medium">✓ No immediate operational risks flagged</span>`;
+
+      // SHAP Table
+      const shapBody = document.getElementById("shap-table-body");
+      shapBody.innerHTML = (data.top_contributions || []).map(f => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 font-medium text-slate-800">${f.feature}</td>
+          <td class="py-2">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${f.shap_value >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">
+              ${f.direction === 'increases' ? 'Raises Rating' : 'Lowers Rating'}
+            </span>
+          </td>
+          <td class="py-2 text-right font-mono font-semibold ${f.shap_value >= 0 ? 'text-emerald-600' : 'text-rose-600'}">
+            ${f.shap_value >= 0 ? '+' : ''}${f.shap_value.toFixed(3)}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // --- Bulk Cohort Logic ---
+    function handleBulkFileSelect(e) {
+      if (e.target.files.length > 0) {
+        bulkFile = e.target.files[0];
+        const nameEl = document.getElementById("file-chosen-name");
+        nameEl.textContent = `Selected: ${bulkFile.name} (${(bulkFile.size / 1024).toFixed(1)} KB)`;
+        nameEl.classList.remove("hidden");
+        document.getElementById("btn-process-bulk").removeAttribute("disabled");
+      }
+    }
+
+    async function uploadAndScoreBulk() {
+      if (!bulkFile) return;
+      const formData = new FormData();
+      formData.append("file", bulkFile);
+
+      const btn = document.getElementById("btn-process-bulk");
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+      btn.setAttribute("disabled", "true");
+
+      try {
+        const res = await fetch("/api/predict_bulk", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${authToken}` },
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Bulk Error: " + (data.error || "Failed to process"));
+          return;
+        }
+
+        renderBulkResults(data.predictions);
+      } catch (err) {
+        alert("Bulk upload failed");
+      } finally {
+        btn.innerHTML = `Process Cohort Predictions`;
+        btn.removeAttribute("disabled");
+      }
+    }
+
+    function renderBulkResults(preds) {
+      const container = document.getElementById("bulk-results-container");
+      container.style.display = "block";
+      document.getElementById("bulk-count-badge").textContent = `${preds.length} Records Evaluated`;
+
+      const tbody = document.getElementById("bulk-table-body");
+      tbody.innerHTML = preds.map(p => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2.5 px-3 font-semibold text-slate-500">${p.record_index}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">${p.name}</td>
+          <td class="py-2.5 px-3 text-slate-600">${p.department}</td>
+          <td class="py-2.5 px-3 text-slate-600">${p.job_role}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded-full font-bold text-[11px] ${
+              p.predicted_class === 'Exceeds Expectations' ? 'tier-exceeds' :
+              p.predicted_class === 'Meets Expectations' ? 'tier-meets' :
+              p.predicted_class === 'Partially Meets Expectations' ? 'tier-partially' : 'tier-needs'
+            }">${p.predicted_class}</span>
+          </td>
+          <td class="py-2.5 px-3 font-mono font-semibold">${(p.confidence * 100).toFixed(1)}%</td>
+          <td class="py-2.5 px-3">
+            ${p.risks && p.risks.length ? p.risks.map(r => `<span class="px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded text-[10px] font-semibold">${r.title}</span>`).join(" ") : '<span class="text-slate-400">None</span>'}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function downloadSampleCsv() {
+      const headers = "Age,Gender,MaritalStatus,DistanceFromHome,Education,Department,JobRole,YearsInCurrentRole,OverTime,MonthlyIncome,TotalWorkingYears,YearsAtCompany,NumCompaniesWorked,PromotionsLast5Y,EngagementScore,WorkLifeBalance,PeerFeedbackScore,ManagerRatingPrev,ProjectsCompleted,DeadlineAdherence,AbsenteeismDays,Certifications\n";
+      const sampleRow = "34,Female,Married,6,4,Research & Development,Developer,3,No,8500,10,5,2,1,4,4,4,5,9,0.92,2,4\n42,Male,Single,18,3,Sales,Sales Executive,6,Yes,9200,15,7,4,0,2,2,2,2,3,0.68,12,0\n";
+      const blob = new Blob([headers + sampleRow], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sample_employee_cohort.csv";
+      a.click();
+    }
+
+    // --- Employee Directory ---
+    async function loadEmployees() {
+      try {
+        const res = await fetch("/api/employees", {
+          headers: { "Authorization": `Bearer ${authToken}` },
+        });
+        const data = await res.json();
+        const tbody = document.getElementById("employees-table-body");
+        tbody.innerHTML = data.map(e => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">#${e.emp_id}</td>
+            <td class="py-2.5 px-3 font-semibold text-slate-900">${e.name}</td>
+            <td class="py-2.5 px-3 text-slate-600">${e.dept_name || 'N/A'}</td>
+            <td class="py-2.5 px-3 text-slate-600">${e.job_role}</td>
+            <td class="py-2.5 px-3 font-mono">$${e.monthly_income.toLocaleString()}</td>
+            <td class="py-2.5 px-3">${e.years_at_company} Yrs</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${e.overtime === 'Yes' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">${e.overtime}</span>
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              <button onclick="loadEmployeeToPredictor(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md font-semibold hover:bg-blue-100 text-[11px]">
+                Score & SHAP
+              </button>
+            </td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        console.error("Error loading employees:", err);
+      }
+    }
+
+    function loadEmployeeToPredictor(emp) {
+      document.getElementById("f_Age").value = emp.age;
+      document.getElementById("f_Gender").value = emp.gender;
+      document.getElementById("f_Department").value = emp.dept_name || "Research & Development";
+      document.getElementById("f_JobRole").value = emp.job_role;
+      document.getElementById("f_MonthlyIncome").value = emp.monthly_income;
+      document.getElementById("f_YearsAtCompany").value = emp.years_at_company;
+      document.getElementById("f_OverTime").value = emp.overtime;
+      switchTab("predict");
+    }
+
+    function openNewEmployeeModal() {
+      const name = prompt("Enter new employee full name:");
+      if (!name) return;
+      const role = prompt("Enter job role (e.g. Developer, Sales Executive, HR Specialist):", "Developer");
+      const salary = parseFloat(prompt("Enter monthly salary ($):", "7500") || "7500");
+      fetch("/api/employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          name: name,
+          dept_id: 2,
+          age: 30,
+          gender: "Other",
+          job_role: role || "Developer",
+          monthly_income: salary,
+          years_at_company: 2,
+          overtime: "No",
+          education_level: "Bachelor's"
+        }),
+      }).then(r => r.json()).then(d => {
+        if (d.error) alert(d.error);
+        else { alert("Employee profile added successfully!"); loadEmployees(); }
+      });
+    }
+
+    // --- Model Zoo Loader ---
+    async function loadModelZoo() {
+      try {
+        const res = await fetch("/api/model_info", {
+          headers: { "Authorization": `Bearer ${authToken}` },
+        });
+        const data = await res.json();
+        const tbody = document.getElementById("leaderboard-table-body");
+        tbody.innerHTML = data.leaderboard.map(m => `
+          <tr class="hover:bg-slate-50 ${m.model.includes('Logistic') ? 'bg-blue-50/40 font-semibold' : ''}">
+            <td class="py-3 px-3 font-medium text-slate-900">${m.model}</td>
+            <td class="py-3 px-3 font-mono">${m.cv_macro_f1 !== null ? m.cv_macro_f1.toFixed(4) : 'N/A'}</td>
+            <td class="py-3 px-3 font-mono">${(m.test_accuracy * 100).toFixed(2)}%</td>
+            <td class="py-3 px-3 font-mono">${m.test_macro_f1.toFixed(4)}</td>
+            <td class="py-3 px-3 font-mono">${m.roc_auc_ovr.toFixed(4)}</td>
+            <td class="py-3 px-3 font-mono">${m.log_loss !== null ? m.log_loss.toFixed(4) : 'N/A'}</td>
+            <td class="py-3 px-3">
+              ${m.model.includes('Logistic')
+                ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">🏆 Winning Model</span>'
+                : '<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px]">Evaluated</span>'}
+            </td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        console.error("Model zoo error:", err);
+      }
+    }
+
+    async function triggerRetrain() {
+      if (!confirm("Are you sure you want to trigger cross-validation model retraining?")) return;
+      const btn = document.getElementById("btn-admin-retrain");
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Retraining Pipeline...`;
+      btn.setAttribute("disabled", "true");
+
+      try {
+        const res = await fetch("/api/admin/retrain", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${authToken}` },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("Retraining completed successfully! Winning Model: " + data.metadata.algorithm);
+          loadModelZoo();
+        } else {
+          alert("Retraining failed: " + (data.error || "Execution error"));
+        }
+      } catch (e) {
+        alert("Retrain request failed");
+      } finally {
+        btn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i><span>Trigger Model Retraining</span>`;
+        btn.removeAttribute("disabled");
+      }
+    }
+
+    // --- Admin Data Loader ---
+    async function loadAdminData() {
+      try {
+        const [usersRes, logsRes] = await Promise.all([
+          fetch("/api/admin/users", { headers: { "Authorization": `Bearer ${authToken}` } }),
+          fetch("/api/admin/audit_logs", { headers: { "Authorization": `Bearer ${authToken}` } }),
+        ]);
+        const users = await usersRes.json();
+        const logs = await logsRes.json();
+
+        const uTbody = document.getElementById("admin-users-table-body");
+        uTbody.innerHTML = users.map(u => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 font-mono">#${u.user_id}</td>
+            <td class="py-2.5 px-3 font-bold text-slate-900">${u.name}</td>
+            <td class="py-2.5 px-3 font-mono">${u.username}</td>
+            <td class="py-2.5 px-3 text-slate-600">${u.email}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold text-[11px]">${u.role}</span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-400">${u.created_at ? u.created_at.split('T')[0] : 'N/A'}</td>
+          </tr>
+        `).join("");
+
+        const lTbody = document.getElementById("audit-table-body");
+        lTbody.innerHTML = logs.map(l => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 font-mono">#${l.log_id}</td>
+            <td class="py-2 px-3 text-slate-400">${l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : ''}</td>
+            <td class="py-2 px-3 font-mono font-semibold text-blue-700">${l.action}</td>
+            <td class="py-2 px-3">${l.user_name}</td>
+            <td class="py-2 px-3 text-slate-600">${l.details}</td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        console.error("Admin load error:", err);
+      }
+    }
+
+    // Startup check
+    window.addEventListener("DOMContentLoaded", checkAuth);
+  </script>
+</body>
+</html>

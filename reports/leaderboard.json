@@ -1,0 +1,50 @@
+[
+  {
+    "model": "Majority Class Baseline",
+    "cv_macro_f1": 0.1429,
+    "test_accuracy": 0.4,
+    "test_macro_f1": 0.1429,
+    "roc_auc_ovr": 0.5,
+    "log_loss": null,
+    "best_params": "N/A"
+  },
+  {
+    "model": "Multinomial Logistic Regression",
+    "cv_macro_f1": 0.6766,
+    "cv_macro_f1_std": 0.0114,
+    "test_accuracy": 0.6433,
+    "test_macro_f1": 0.6538,
+    "roc_auc_ovr": 0.8847,
+    "log_loss": 0.762,
+    "best_params": {
+      "classifier__C": 5.0
+    }
+  },
+  {
+    "model": "Gradient Boosting Classifier",
+    "cv_macro_f1": 0.6356,
+    "cv_macro_f1_std": 0.0163,
+    "test_accuracy": 0.6242,
+    "test_macro_f1": 0.6209,
+    "roc_auc_ovr": 0.8541,
+    "log_loss": 0.8285,
+    "best_params": {
+      "classifier__learning_rate": 0.12,
+      "classifier__max_depth": 4,
+      "classifier__n_estimators": 150
+    }
+  },
+  {
+    "model": "Random Forest Classifier",
+    "cv_macro_f1": 0.605,
+    "cv_macro_f1_std": 0.017,
+    "test_accuracy": 0.5617,
+    "test_macro_f1": 0.5743,
+    "roc_auc_ovr": 0.8342,
+    "log_loss": 1.0123,
+    "best_params": {
+      "classifier__max_depth": 8,
+      "classifier__n_estimators": 150
+    }
+  }
+]
