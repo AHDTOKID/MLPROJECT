@@ -35,7 +35,7 @@ pytest
 
 # 7. Launch the full-stack web application
 python -m app.app
-# → Open http://localhost:5000 in your browser
+# → Open http://localhost:5003 in your browser
 # → Quick Sign-In Personas:
 #     * HR Manager: hr / hr123
 #     * System Admin: admin / admin123
