@@ -252,6 +252,10 @@
               <!-- Section A: Demographics -->
               <div>
                 <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Demographics & Background</h4>
+                <div class="mb-3">
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Employee / Candidate Name</label>
+                  <input id="f_Name" type="text" value="Dr. Sophia Patel" placeholder="e.g. Dr. Sophia Patel" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-medium">
+                </div>
                 <div class="grid grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Age</label>
@@ -842,6 +846,7 @@
     // --- Single Predictor Logic ---
     function loadSamplePreset(type) {
       if (type === "high") {
+        if (document.getElementById("f_Name")) document.getElementById("f_Name").value = "Dr. Sophia Patel";
         document.getElementById("f_Age").value = 34;
         document.getElementById("f_Department").value = "Research & Development";
         document.getElementById("f_JobRole").value = "Developer";
@@ -860,6 +865,7 @@
         document.getElementById("f_PeerFeedbackScore").value = 5;
         document.getElementById("f_ManagerRatingPrev").value = 5;
       } else if (type === "burnout") {
+        if (document.getElementById("f_Name")) document.getElementById("f_Name").value = "Marcus Vance";
         document.getElementById("f_Age").value = 41;
         document.getElementById("f_Department").value = "Sales";
         document.getElementById("f_JobRole").value = "Sales Executive";
@@ -878,6 +884,7 @@
         document.getElementById("f_PeerFeedbackScore").value = 2;
         document.getElementById("f_ManagerRatingPrev").value = 2;
       } else if (type === "stagnant") {
+        if (document.getElementById("f_Name")) document.getElementById("f_Name").value = "Liam O'Connor";
         document.getElementById("f_Age").value = 38;
         document.getElementById("f_Department").value = "Human Resources";
         document.getElementById("f_JobRole").value = "HR Specialist";
@@ -900,7 +907,9 @@
 
     async function executeSinglePrediction(e) {
       e.preventDefault();
+      const nameVal = document.getElementById("f_Name") ? document.getElementById("f_Name").value.trim() : "";
       const payload = {
+        Name: nameVal || "Candidate Evaluation",
         Age: parseFloat(document.getElementById("f_Age").value),
         Gender: document.getElementById("f_Gender").value,
         MaritalStatus: document.getElementById("f_MaritalStatus").value,

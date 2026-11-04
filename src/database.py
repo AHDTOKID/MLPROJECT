@@ -186,17 +186,47 @@ class Prediction(Base):
     user = relationship("User", back_populates="predictions")
 
     def to_dict(self):
+        feat = {}
+        if self.features_json:
+            try:
+                feat = json.loads(self.features_json)
+            except Exception:
+                feat = {}
+
+        # Resolve employee name:
+        # 1. From database employee foreign key
+        # 2. From 'Name' or 'employee_name' stored in features_json
+        # 3. Fallback based on job role or pred_id
+        emp_name = None
+        if self.employee and self.employee.name:
+            emp_name = self.employee.name
+        elif isinstance(feat, dict):
+            for candidate in ["Name", "name", "EmployeeName", "employee_name", "FullName", "Candidate"]:
+                if feat.get(candidate):
+                    emp_name = str(feat[candidate]).strip()
+                    break
+
+        if not emp_name:
+            role = feat.get("JobRole", feat.get("job_role")) if isinstance(feat, dict) else None
+            dept = feat.get("Department", feat.get("department")) if isinstance(feat, dict) else None
+            if role:
+                emp_name = f"{role} #{self.pred_id}"
+            elif dept:
+                emp_name = f"{dept} Staff #{self.pred_id}"
+            else:
+                emp_name = f"Employee #{self.pred_id}"
+
         return {
             "pred_id": self.pred_id,
             "emp_id": self.emp_id,
-            "employee_name": self.employee.name if self.employee else "Ad-hoc Prediction",
+            "employee_name": emp_name,
             "model_id": self.model_id,
             "algorithm": self.ml_model.algorithm if self.ml_model else "Logistic Regression",
             "user_id": self.user_id,
             "evaluated_by": self.user.name if self.user else "System",
             "predicted_class": self.predicted_class,
             "probability": round(self.probability, 4),
-            "features": json.loads(self.features_json) if self.features_json else {},
+            "features": feat,
             "shap_explanation": json.loads(self.shap_json) if self.shap_json else [],
             "risk_factors": json.loads(self.risk_factors) if self.risk_factors else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,

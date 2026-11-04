@@ -188,9 +188,16 @@ def generate_pdf_report(
 
         pdf.set_font("Helvetica", "", 7.5)
         pdf.set_text_color(51, 65, 85)
-        for p in predictions[:8]:
-            name = str(p.get("employee_name", f"Emp #{p.get('emp_id', 'N/A')}"))[:20]
-            dept = str(p.get("features", {}).get("Department", "Enterprise"))[:18]
+        for p in predictions[:10]:
+            feat = p.get("features", {})
+            if isinstance(feat, str):
+                try:
+                    feat = json.loads(feat)
+                except Exception:
+                    feat = {}
+            name = str(p.get("employee_name") or feat.get("Name") or feat.get("name") or f"Emp #{p.get('emp_id', 'N/A')}")[:22]
+            raw_dept = feat.get("Department") or feat.get("department") or p.get("department")
+            dept = str(raw_dept if raw_dept and str(raw_dept).lower() != "none" else "Enterprise")[:18]
             tier = str(p.get("predicted_class", "N/A"))
             conf = f"{p.get('probability', 0)*100:.1f}%"
             risks = p.get("risk_factors", [])

@@ -223,8 +223,18 @@ def predict_single():
     payload = request.get_json(silent=True) or {}
     emp_id = payload.pop("emp_id", None)
     save_to_db = payload.pop("save_to_db", True)
+    emp_name = payload.get("Name", payload.get("name", payload.get("EmployeeName")))
+    if not emp_name:
+        emp_name = "Candidate Evaluation"
+    payload["Name"] = emp_name
 
     try:
+        session = SessionLocal()
+        if not emp_id and emp_name:
+            matched_emp = session.query(Employee).filter(Employee.name.ilike(emp_name.strip())).first()
+            if matched_emp:
+                emp_id = matched_emp.emp_id
+
         prediction = predictor.predict_one(payload)
         explanation = explain_single(payload, explainer, feat_names, predictor.pipeline)
 
@@ -234,11 +244,11 @@ def predict_single():
             "strengths": explanation["strengths"],
             "risks": explanation["risks"],
             "features": payload,
+            "name": emp_name,
         }
 
         # Persist to PREDICTION table (§2.6)
         if save_to_db:
-            session = SessionLocal()
             active_model = session.query(MLModel).order_by(MLModel.model_id.desc()).first()
             user_id = int(get_jwt_identity())
             pred_record = Prediction(
@@ -255,7 +265,7 @@ def predict_single():
             session.commit()
             result["pred_id"] = pred_record.pred_id
 
-        log_audit("SINGLE_PREDICTION", f"Predicted {result['predicted_class']} ({result['confidence']*100:.1f}%)", int(get_jwt_identity()))
+        log_audit("SINGLE_PREDICTION", f"Predicted {result['predicted_class']} ({result['confidence']*100:.1f}%) for {emp_name}", int(get_jwt_identity()))
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -293,12 +303,34 @@ def predict_bulk_cohort():
                 name_col = col_candidate
                 break
 
+        session = SessionLocal()
+        active_model = session.query(MLModel).order_by(MLModel.model_id.desc()).first()
+        user_id = int(get_jwt_identity())
+
         for i, pred in enumerate(predictions):
             row_dict = df.iloc[i].to_dict()
             analysis = identify_strengths_and_risks(row_dict)
-            emp_name = str(row_dict[name_col]) if name_col and pd.notna(row_dict[name_col]) else f"Cohort #{i+1}"
+            emp_name = str(row_dict[name_col]) if name_col and pd.notna(row_dict[name_col]) else f"Cohort Member #{i+1}"
             dept_name = str(row_dict.get("Department", row_dict.get("department", "Enterprise")))
             job_role = str(row_dict.get("JobRole", row_dict.get("job_role", "N/A")))
+
+            feat_dict = {k: (v if pd.notna(v) else None) for k, v in row_dict.items()}
+            feat_dict["Name"] = emp_name
+
+            matched_emp = session.query(Employee).filter(Employee.name.ilike(emp_name.strip())).first()
+            emp_id = matched_emp.emp_id if matched_emp else None
+
+            pred_record = Prediction(
+                emp_id=emp_id,
+                model_id=active_model.model_id if active_model else None,
+                user_id=user_id,
+                predicted_class=pred["predicted_class"],
+                probability=round(pred["confidence"], 4),
+                features_json=json.dumps(feat_dict),
+                shap_json=json.dumps([]),
+                risk_factors=json.dumps(analysis["risks"]),
+            )
+            session.add(pred_record)
 
             enriched.append({
                 "record_index": i + 1,
@@ -310,9 +342,10 @@ def predict_bulk_cohort():
                 "probabilities": pred["probabilities"],
                 "strengths": analysis["strengths"],
                 "risks": analysis["risks"],
-                "features": {k: (v if pd.notna(v) else None) for k, v in row_dict.items()},
+                "features": feat_dict,
             })
 
+        session.commit()
         log_audit("BULK_PREDICTION", f"Processed bulk cohort of {len(enriched)} records", int(get_jwt_identity()))
         return jsonify({
             "total_records": len(enriched),
