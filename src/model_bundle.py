@@ -49,25 +49,27 @@ class ModelBundle:
         """Single employee inference returning predicted class, confidence, and probability map."""
         df = self._ensure_dataframe(features)
         proba = self.pipeline.predict_proba(df)[0]
-        idx = int(np.argmax(proba))
-        pred_label = self.class_names[idx]
+        model_classes = list(getattr(self.pipeline, "classes_", self.class_names))
+        prob_map = {cls_name: float(p) for cls_name, p in zip(model_classes, proba)}
+        pred_label = max(prob_map, key=prob_map.get)
         return {
             "predicted_class": pred_label,
-            "confidence": float(proba[idx]),
-            "probabilities": {name: float(proba[i]) for i, name in enumerate(self.class_names)},
+            "confidence": float(prob_map[pred_label]),
+            "probabilities": {name: float(prob_map.get(name, 0.0)) for name in self.class_names},
         }
 
     def predict_many(self, records: Union[pd.DataFrame, list]) -> list:
         """Batch employee inference returning structured list of predictions."""
         df = self._ensure_dataframe(records)
         probas = self.pipeline.predict_proba(df)
+        model_classes = list(getattr(self.pipeline, "classes_", self.class_names))
         results = []
         for proba in probas:
-            idx = int(np.argmax(proba))
-            pred_label = self.class_names[idx]
+            prob_map = {cls_name: float(p) for cls_name, p in zip(model_classes, proba)}
+            pred_label = max(prob_map, key=prob_map.get)
             results.append({
                 "predicted_class": pred_label,
-                "confidence": float(proba[idx]),
-                "probabilities": {name: float(proba[i]) for i, name in enumerate(self.class_names)},
+                "confidence": float(prob_map[pred_label]),
+                "probabilities": {name: float(prob_map.get(name, 0.0)) for name in self.class_names},
             })
         return results

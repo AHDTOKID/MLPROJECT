@@ -92,11 +92,12 @@ def model_grids():
 def evaluate(estimator, X_test, y_test, labels):
     y_pred = estimator.predict(X_test)
     y_proba = estimator.predict_proba(X_test)
+    est_classes = estimator.classes_
     return {
         "accuracy": float(accuracy_score(y_test, y_pred)),
         "macro_f1": float(f1_score(y_test, y_pred, average="macro")),
-        "roc_auc_ovr": float(roc_auc_score(y_test, y_proba, multi_class="ovr", average="macro")),
-        "log_loss": float(log_loss(y_test, y_proba, labels=labels)),
+        "roc_auc_ovr": float(roc_auc_score(y_test, y_proba, multi_class="ovr", average="macro", labels=est_classes)),
+        "log_loss": float(log_loss(y_test, y_proba, labels=est_classes)),
         "y_pred": y_pred,
         "y_proba": y_proba,
     }
@@ -176,9 +177,10 @@ def generate_diagnostic_plots(best_name, best_pipe, X_te, y_te, y_pred, y_proba,
     plt.close()
 
     # 4. Multiclass ROC Curves (OvR)
-    y_bin = label_binarize(y_te, classes=labels)
+    est_classes = list(best_pipe.classes_)
+    y_bin = label_binarize(y_te, classes=est_classes)
     plt.figure(figsize=(8, 6))
-    for i, c in enumerate(labels):
+    for i, c in enumerate(est_classes):
         fpr, tpr, _ = roc_curve(y_bin[:, i], y_proba[:, i])
         roc_auc = auc(fpr, tpr)
         plt.plot(fpr, tpr, lw=2, label=f"{c} (AUC = {roc_auc:.3f})")

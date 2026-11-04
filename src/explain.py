@@ -134,10 +134,13 @@ def explain_single(features: dict, explainer, feature_names, pipeline, top_k: in
     row = pd.DataFrame([features])
     x = prep.transform(add_engineered_features(row))
 
+    model_classes = list(getattr(pipeline, "classes_", CLASS_NAMES))
     shap_raw = explainer.shap_values(x)
-    shap_values = _normalize_shap(shap_raw, len(CLASS_NAMES))
+    shap_values = _normalize_shap(shap_raw, len(model_classes))
     proba = pipeline.predict_proba(row)[0]
-    pred_idx = int(np.argmax(proba))
+    prob_map = {cls_name: float(p) for cls_name, p in zip(model_classes, proba)}
+    pred_label = max(prob_map, key=prob_map.get)
+    pred_idx = model_classes.index(pred_label)
     contribs = shap_values[0, :, pred_idx]
 
     order = np.argsort(np.abs(contribs))[::-1][:top_k]
@@ -154,8 +157,8 @@ def explain_single(features: dict, explainer, feature_names, pipeline, top_k: in
     analysis = identify_strengths_and_risks(features)
 
     return {
-        "predicted_class": CLASS_NAMES[pred_idx],
-        "confidence": round(float(proba[pred_idx]), 4),
+        "predicted_class": pred_label,
+        "confidence": round(prob_map[pred_label], 4),
         "top_contributions": shap_factors,
         "strengths": analysis["strengths"],
         "risks": analysis["risks"],
