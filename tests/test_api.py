@@ -95,6 +95,30 @@ def test_predict_bulk_endpoint(client):
     assert len(res_json["predictions"]) == 2
 
 
+def test_predict_bulk_with_aliases_and_bom(client):
+    token = get_token(client, "lead", "lead123")
+    messy_csv = (
+        "\ufeffname,age,gender,department,job_role,salary,total_experience,projects_completed,deadline_adherence,absenteeism\n"
+        "Charlie Brown,29,Male,Human Resources,HR Executive,5200,6,7,0.88,3\n"
+        "Diana Prince,38,Female,Research & Development,Tech Lead,12000,14,12,0.98,1\n"
+    )
+    data = {
+        "file": (io.BytesIO(messy_csv.encode("utf-8")), "messy_cohort.csv")
+    }
+    res = client.post(
+        "/api/predict_bulk",
+        headers={"Authorization": f"Bearer {token}"},
+        data=data,
+        content_type="multipart/form-data",
+    )
+    assert res.status_code == 200
+    res_json = res.get_json()
+    assert res_json["total_records"] == 2
+    assert res_json["predictions"][0]["name"] == "Charlie Brown"
+    assert res_json["predictions"][1]["name"] == "Diana Prince"
+    assert res_json["predictions"][0]["predicted_class"] in CLASS_NAMES
+
+
 def test_rbac_admin_protection(client):
     # HR Manager trying to access Admin Users list should receive 403 Forbidden
     hr_token = get_token(client, "hr", "hr123")

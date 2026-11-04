@@ -464,27 +464,37 @@
           </div>
 
           <!-- File Upload Zone -->
-          <div class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-blue-400 transition bg-slate-50/50">
-            <input type="file" id="bulk-file-input" accept=".csv" class="hidden" onchange="handleBulkFileSelect(event)">
-            <div class="cursor-pointer" onclick="document.getElementById('bulk-file-input').click()">
-              <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-500 mb-2"></i>
-              <div class="text-sm font-semibold text-slate-800">Click to upload employee CSV cohort</div>
-              <p class="text-xs text-slate-500 mt-1">Accepts UTF-8 encoded .csv with enterprise schema features</p>
-            </div>
-            <div id="file-chosen-name" class="mt-3 text-xs font-semibold text-blue-600 hidden"></div>
+          <div id="bulk-drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-blue-500 hover:bg-blue-50/30 transition bg-slate-50/50 cursor-pointer" onclick="document.getElementById('bulk-file-input').click()">
+            <input type="file" id="bulk-file-input" accept=".csv,text/csv" class="hidden" onchange="handleBulkFileSelect(event)">
+            <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-500 mb-2"></i>
+            <div class="text-sm font-semibold text-slate-800">Click to browse or drag & drop CSV cohort file here</div>
+            <p class="text-xs text-slate-500 mt-1">Accepts standard employee CSV files (UTF-8 / Excel CSV supported)</p>
+            <div id="file-chosen-name" class="mt-3 inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold hidden"></div>
           </div>
-          <div class="mt-4 flex justify-end">
-            <button id="btn-process-bulk" onclick="uploadAndScoreBulk()" disabled class="px-5 py-2.5 bg-blue-600 disabled:opacity-50 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow transition">
-              Process Cohort Predictions
+
+          <div id="bulk-status-box" class="mt-3 text-xs p-3 rounded-xl hidden"></div>
+
+          <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span class="text-xs text-slate-400">Columns are automatically normalized with resilient schema mapping.</span>
+            <button id="btn-process-bulk" onclick="uploadAndScoreBulk()" disabled class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-play"></i><span>Process Cohort Predictions</span>
             </button>
           </div>
         </div>
 
         <!-- Bulk Results Table -->
         <div id="bulk-results-container" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" style="display:none;">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">Cohort Evaluation Roster</h3>
-            <span id="bulk-count-badge" class="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">0 Records</span>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Cohort Evaluation Roster</h3>
+              <p class="text-xs text-slate-500">Predicted performance tiers, model certainty, and flagged operational risk indicators</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span id="bulk-count-badge" class="text-xs bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200">0 Records</span>
+              <button onclick="exportBulkToCsv()" class="px-3 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-300 flex items-center space-x-1">
+                <i class="fa-solid fa-file-arrow-down"></i><span>Export Evaluated CSV</span>
+              </button>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
@@ -1004,24 +1014,59 @@
     }
 
     // --- Bulk Cohort Logic ---
+    let lastBulkResults = [];
+
     function handleBulkFileSelect(e) {
-      if (e.target.files.length > 0) {
-        bulkFile = e.target.files[0];
+      const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
+      if (files && files.length > 0) {
+        bulkFile = files[0];
+        if (!bulkFile.name.toLowerCase().endsWith(".csv")) {
+          showBulkStatus("Selected file is not a .csv file. Please upload a CSV file.", "error");
+          bulkFile = null;
+          return;
+        }
         const nameEl = document.getElementById("file-chosen-name");
-        nameEl.textContent = `Selected: ${bulkFile.name} (${(bulkFile.size / 1024).toFixed(1)} KB)`;
+        nameEl.textContent = `File ready: ${bulkFile.name} (${(bulkFile.size / 1024).toFixed(1)} KB)`;
         nameEl.classList.remove("hidden");
         document.getElementById("btn-process-bulk").removeAttribute("disabled");
+        showBulkStatus(`Loaded "${bulkFile.name}". Click "Process Cohort Predictions" to evaluate.`, "info");
+      }
+    }
+
+    function showBulkStatus(msg, type = "info") {
+      const box = document.getElementById("bulk-status-box");
+      box.classList.remove("hidden", "bg-blue-50", "text-blue-800", "border-blue-200", "bg-red-50", "text-red-800", "border-red-200", "bg-emerald-50", "text-emerald-800", "border-emerald-200");
+      box.classList.add("border");
+      if (type === "error") {
+        box.classList.add("bg-red-50", "text-red-800", "border-red-200");
+        box.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1.5"></i> ${msg}`;
+      } else if (type === "success") {
+        box.classList.add("bg-emerald-50", "text-emerald-800", "border-emerald-200");
+        box.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> ${msg}`;
+      } else {
+        box.classList.add("bg-blue-50", "text-blue-800", "border-blue-200");
+        box.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i> ${msg}`;
       }
     }
 
     async function uploadAndScoreBulk() {
-      if (!bulkFile) return;
+      if (!bulkFile) {
+        showBulkStatus("Please select or drop a CSV file first.", "error");
+        return;
+      }
+      if (!authToken) {
+        showBulkStatus("Session expired. Please sign in again.", "error");
+        handleLogout();
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", bulkFile);
 
       const btn = document.getElementById("btn-process-bulk");
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Processing Cohort...`;
       btn.setAttribute("disabled", "true");
+      showBulkStatus("Evaluating cohort through ML pipeline & risk engine...", "info");
 
       try {
         const res = await fetch("/api/predict_bulk", {
@@ -1031,15 +1076,18 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          alert("Bulk Error: " + (data.error || "Failed to process"));
+          showBulkStatus(data.error || data.msg || "Failed to process CSV file.", "error");
           return;
         }
 
+        lastBulkResults = data.predictions;
         renderBulkResults(data.predictions);
+        showBulkStatus(`Successfully scored ${data.total_records} employee records! Results rendered below.`, "success");
+        document.getElementById("bulk-results-container").scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (err) {
-        alert("Bulk upload failed");
+        showBulkStatus("Network or server connection failed while uploading CSV.", "error");
       } finally {
-        btn.innerHTML = `Process Cohort Predictions`;
+        btn.innerHTML = `<i class="fa-solid fa-play"></i><span>Process Cohort Predictions</span>`;
         btn.removeAttribute("disabled");
       }
     }
@@ -1071,15 +1119,74 @@
       `).join("");
     }
 
+    function exportBulkToCsv() {
+      if (!lastBulkResults || lastBulkResults.length === 0) {
+        alert("No cohort results to export.");
+        return;
+      }
+      const headers = ["Index", "Name", "Department", "JobRole", "PredictedTier", "Confidence", "Risks", "Strengths"];
+      const rows = lastBulkResults.map(p => [
+        p.record_index,
+        `"${p.name}"`,
+        `"${p.department}"`,
+        `"${p.job_role}"`,
+        `"${p.predicted_class}"`,
+        `${(p.confidence * 100).toFixed(1)}%`,
+        `"${(p.risks || []).map(r => r.title).join('; ')}"`,
+        `"${(p.strengths || []).join('; ')}"`,
+      ]);
+      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cohort_evaluation_results_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    }
+
     function downloadSampleCsv() {
-      const headers = "Age,Gender,MaritalStatus,DistanceFromHome,Education,Department,JobRole,YearsInCurrentRole,OverTime,MonthlyIncome,TotalWorkingYears,YearsAtCompany,NumCompaniesWorked,PromotionsLast5Y,EngagementScore,WorkLifeBalance,PeerFeedbackScore,ManagerRatingPrev,ProjectsCompleted,DeadlineAdherence,AbsenteeismDays,Certifications\n";
-      const sampleRow = "34,Female,Married,6,4,Research & Development,Developer,3,No,8500,10,5,2,1,4,4,4,5,9,0.92,2,4\n42,Male,Single,18,3,Sales,Sales Executive,6,Yes,9200,15,7,4,0,2,2,2,2,3,0.68,12,0\n";
-      const blob = new Blob([headers + sampleRow], { type: "text/csv" });
+      const headers = "Name,Age,Gender,MaritalStatus,DistanceFromHome,Education,Department,JobRole,YearsInCurrentRole,OverTime,MonthlyIncome,TotalWorkingYears,YearsAtCompany,NumCompaniesWorked,PromotionsLast5Y,EngagementScore,WorkLifeBalance,PeerFeedbackScore,ManagerRatingPrev,ProjectsCompleted,DeadlineAdherence,AbsenteeismDays,Certifications\n";
+      const sampleRows = [
+        "Alice Chen,34,Female,Married,6,4,Research & Development,Developer,3,No,8500,10,5,2,1,5,4,5,5,11,0.95,1,4",
+        "Bob Miller,42,Male,Single,18,3,Sales,Sales Executive,6,Yes,9200,15,7,4,0,2,2,2,2,3,0.68,14,0",
+        "Catherine Taylor,29,Female,Single,4,4,Research & Development,Research Scientist,2,No,7200,6,3,1,1,5,4,5,5,12,0.98,1,5",
+        "David Kumar,38,Male,Married,12,3,Human Resources,HR Specialist,6,No,6700,12,6,3,0,3,3,3,3,6,0.84,5,2",
+        "Elena Rostova,31,Female,Married,8,3,Sales,Sales Representative,2,No,6100,8,4,2,1,4,4,4,4,8,0.89,3,3"
+      ].join("\n");
+      const blob = new Blob([headers + sampleRows], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "sample_employee_cohort.csv";
       a.click();
+    }
+
+    function initDropZone() {
+      const dropZone = document.getElementById("bulk-drop-zone");
+      if (!dropZone) return;
+
+      ["dragenter", "dragover"].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add("border-blue-500", "bg-blue-50/50");
+        }, false);
+      });
+
+      ["dragleave", "drop"].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove("border-blue-500", "bg-blue-50/50");
+        }, false);
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          handleBulkFileSelect({ dataTransfer: dt });
+        }
+      }, false);
     }
 
     // --- Employee Directory ---

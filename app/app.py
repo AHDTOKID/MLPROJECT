@@ -10,6 +10,7 @@ Conforms to the 4-Layer Architecture and Functional Modules specified in the Pro
 """
 from datetime import datetime
 from functools import wraps
+import io
 import json
 import os
 from pathlib import Path
@@ -264,31 +265,52 @@ def predict_single():
 @jwt_required()
 def predict_bulk_cohort():
     if "file" not in request.files:
-        return jsonify({"error": "Missing CSV file upload under multipart field 'file'"}), 400
+        return jsonify({"error": "Missing CSV file upload under field 'file'"}), 400
 
     uploaded_file = request.files["file"]
-    if not uploaded_file.filename.endswith(".csv"):
-        return jsonify({"error": "File must be a CSV format"}), 400
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    if not uploaded_file.filename.lower().endswith(".csv"):
+        return jsonify({"error": "File must be in .csv format"}), 400
 
     try:
-        df = pd.read_csv(uploaded_file)
+        content = uploaded_file.read()
+        try:
+            df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            df = pd.read_csv(io.BytesIO(content), encoding="latin1")
+
+        if df.empty:
+            return jsonify({"error": "The uploaded CSV file is empty"}), 400
+
         predictions = predictor.predict_many(df)
         enriched = []
+
+        name_col = None
+        for col_candidate in ["Name", "name", "EmployeeName", "employee_name", "FullName", "Candidate"]:
+            if col_candidate in df.columns:
+                name_col = col_candidate
+                break
 
         for i, pred in enumerate(predictions):
             row_dict = df.iloc[i].to_dict()
             analysis = identify_strengths_and_risks(row_dict)
+            emp_name = str(row_dict[name_col]) if name_col and pd.notna(row_dict[name_col]) else f"Cohort #{i+1}"
+            dept_name = str(row_dict.get("Department", row_dict.get("department", "Enterprise")))
+            job_role = str(row_dict.get("JobRole", row_dict.get("job_role", "N/A")))
+
             enriched.append({
                 "record_index": i + 1,
-                "name": row_dict.get("Name", f"Cohort #{i+1}"),
-                "department": row_dict.get("Department", "N/A"),
-                "job_role": row_dict.get("JobRole", "N/A"),
+                "name": emp_name,
+                "department": dept_name,
+                "job_role": job_role,
                 "predicted_class": pred["predicted_class"],
                 "confidence": round(pred["confidence"], 4),
                 "probabilities": pred["probabilities"],
                 "strengths": analysis["strengths"],
                 "risks": analysis["risks"],
-                "features": row_dict,
+                "features": {k: (v if pd.notna(v) else None) for k, v in row_dict.items()},
             })
 
         log_audit("BULK_PREDICTION", f"Processed bulk cohort of {len(enriched)} records", int(get_jwt_identity()))
@@ -297,7 +319,7 @@ def predict_bulk_cohort():
             "predictions": enriched,
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": f"CSV Processing Error: {str(e)}"}), 400
 
 
 @app.route("/api/predictions/history", methods=["GET"])
