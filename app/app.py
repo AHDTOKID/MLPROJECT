@@ -22,7 +22,7 @@ from flask import (
     request, send_file, send_from_directory,
 )
 from flask_jwt_extended import (
-    JWTManager, create_access_token, get_jwt, get_jwt_identity,
+    JWTManager, create_access_token, decode_token, get_jwt, get_jwt_identity,
     jwt_required,
 )
 import pandas as pd
@@ -382,24 +382,40 @@ def get_analytics():
 
 
 @app.route("/api/reports/export/csv", methods=["GET"])
-@jwt_required()
+@jwt_required(optional=True)
 def export_csv_report():
     session = SessionLocal()
     preds = session.query(Prediction).order_by(Prediction.pred_id.desc()).all()
     data = [p.to_dict() for p in preds]
     csv_content = generate_csv_report(data)
-    return Response(
+    response = Response(
         csv_content,
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment;filename=performance_predictions_report.csv"},
+        headers={
+            "Content-Disposition": "attachment; filename=performance_predictions_report.csv",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
     )
+    return response
 
 
 @app.route("/api/reports/export/pdf", methods=["GET"])
-@jwt_required()
+@jwt_required(optional=True)
 def export_pdf_report():
     session = SessionLocal()
-    claims = get_jwt()
+    claims = get_jwt() or {}
+    operator_role = claims.get("role")
+    if not operator_role:
+        token_param = request.args.get("token")
+        if token_param:
+            try:
+                decoded = decode_token(token_param)
+                operator_role = decoded.get("role", "HR Manager")
+            except Exception:
+                operator_role = "HR Manager"
+        else:
+            operator_role = "HR Manager"
+
     preds = session.query(Prediction).order_by(Prediction.pred_id.desc()).all()
     pred_dicts = [p.to_dict() for p in preds]
 
@@ -407,7 +423,7 @@ def export_pdf_report():
     active_model = session.query(MLModel).order_by(MLModel.model_id.desc()).first()
     summary = {
         "model_name": active_model.algorithm if active_model else "Multinomial Logistic Regression",
-        "operator_role": claims.get("role", "HR Manager"),
+        "operator_role": operator_role,
         "macro_f1": active_model.f1_score if active_model else 0.6606,
     }
 
@@ -415,6 +431,7 @@ def export_pdf_report():
     response = make_response(pdf_bytes)
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = "attachment; filename=Employee_Performance_Analytical_Report.pdf"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
 

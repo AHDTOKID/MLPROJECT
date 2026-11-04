@@ -211,14 +211,14 @@
               <h3 class="text-sm font-bold text-slate-900 mb-1">Executive Report Generator</h3>
               <p class="text-xs text-slate-500 mb-4">Export publication-ready compliance & talent audits (§2.1)</p>
               <div class="space-y-3">
-                <a href="/api/reports/export/pdf" download class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-xs shadow-md shadow-blue-500/20 transition">
+                <button type="button" id="btn-download-pdf" onclick="downloadExecutivePdf(event)" class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-xs shadow-md shadow-blue-500/20 transition cursor-pointer">
                   <i class="fa-solid fa-file-pdf"></i>
                   <span>Download Executive PDF Report</span>
-                </a>
-                <a href="/api/reports/export/csv" download class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-xs transition border border-slate-300">
+                </button>
+                <button type="button" id="btn-export-csv" onclick="exportPredictionsCsv(event)" class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium text-xs transition border border-slate-300 cursor-pointer">
                   <i class="fa-solid fa-file-csv"></i>
                   <span>Export Predictions CSV Dataset</span>
-                </a>
+                </button>
               </div>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
@@ -1117,6 +1117,80 @@
           </td>
         </tr>
       `).join("");
+    }
+
+    async function downloadExecutivePdf(e) {
+      if (e) e.preventDefault();
+      const btn = document.getElementById("btn-download-pdf");
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Generating PDF...`;
+      btn.style.pointerEvents = "none";
+      btn.classList.add("opacity-75");
+
+      try {
+        const headers = authToken ? { "Authorization": `Bearer ${authToken}` } : {};
+        const urlWithToken = authToken ? `/api/reports/export/pdf?token=${encodeURIComponent(authToken)}` : "/api/reports/export/pdf";
+        const res = await fetch(urlWithToken, { headers });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert("PDF Export Error: " + (err.error || err.msg || "Failed to generate report"));
+          return;
+        }
+
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = "Employee_Performance_Analytical_Report.pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } catch (err) {
+        alert("Network error while downloading PDF report: " + err.message);
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.style.pointerEvents = "auto";
+        btn.classList.remove("opacity-75");
+      }
+    }
+
+    async function exportPredictionsCsv(e) {
+      if (e) e.preventDefault();
+      const btn = document.getElementById("btn-export-csv");
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Exporting CSV...`;
+      btn.style.pointerEvents = "none";
+      btn.classList.add("opacity-75");
+
+      try {
+        const headers = authToken ? { "Authorization": `Bearer ${authToken}` } : {};
+        const urlWithToken = authToken ? `/api/reports/export/csv?token=${encodeURIComponent(authToken)}` : "/api/reports/export/csv";
+        const res = await fetch(urlWithToken, { headers });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert("CSV Export Error: " + (err.error || err.msg || "Failed to export data"));
+          return;
+        }
+
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = "performance_predictions_report.csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } catch (err) {
+        alert("Network error while exporting CSV: " + err.message);
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.style.pointerEvents = "auto";
+        btn.classList.remove("opacity-75");
+      }
     }
 
     function exportBulkToCsv() {

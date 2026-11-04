@@ -194,7 +194,18 @@ def generate_pdf_report(
             tier = str(p.get("predicted_class", "N/A"))
             conf = f"{p.get('probability', 0)*100:.1f}%"
             risks = p.get("risk_factors", [])
-            note = str(risks[0]["title"])[:22] if risks else "Stable profile"
+            if isinstance(risks, str):
+                try:
+                    risks = json.loads(risks)
+                except Exception:
+                    risks = []
+            note = "Stable profile"
+            if isinstance(risks, list) and len(risks) > 0:
+                first = risks[0]
+                if isinstance(first, dict):
+                    note = str(first.get("title", first.get("code", "Risk Flagged")))[:22]
+                else:
+                    note = str(first)[:22]
 
             pdf.cell(40, 5.5, name, border=1)
             pdf.cell(35, 5.5, dept, border=1)
